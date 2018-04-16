@@ -10,6 +10,7 @@ from csv import reader
 from pyspark import SparkContext, SparkConf
 from shapely.geometry import Polygon, Point
 
+""" broadcast these """
 regions = []
 polygons = []
 HEADERS = []
@@ -133,9 +134,11 @@ def preprocess(uri, conf):
 
     out_dir = conf.get("out_dir")
     zero_values = [0] * len(HEADERS)
+
+    """ remove sort and coalesce later """
     temp = ds_with_spat_temp.map(parser_count) \
                             .aggregateByKey(zero_values, seq_func, comb_func) \
-                            .sortByKey() \   # need to rethink sort or not
+                            .sortByKey() \
                             .coalesce(1) \
                             .map(formatter) \
                             .saveAsTextFile(out_dir)
@@ -159,14 +162,14 @@ if __name__ == "__main__":
     """
     conf = SparkConf()
     conf.setMaster("local") \
-        .setAppName("cs6513 project") \
+        .setAppName("cs6513_project_preprocess") \
         .set("region_file", "./data/zipcode.txt") \
         .set("ti_date", 1) \
         .set("ti_time", 1) \
-        .set("si_lat", 6) \
-        .set("si_lng", 5) \
+        .set("si_lat", 5) \
+        .set("si_lng", 6) \
         .set("t_res", "date") \
         .set("s_res", "zip") \
-        .set("out_dir", "taxi.out")
+        .set("out_dir", "citi.out")
 
     preprocess(uri, conf)

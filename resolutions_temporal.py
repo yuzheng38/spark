@@ -18,7 +18,10 @@ def resolve_temporal_date(line, ti):
         try:
             temp_res = datetime.strptime(temp, "%m/%d/%Y").date()
         except ValueError:
-            temp_res = datatime.strptime(temp, "%m/%d/%Y %H:%M:%S").date()
+            try:
+                temp_res = datetime.strptime(temp, "%m/%d/%Y %H:%M:%S").date()
+            except ValueError:
+                temp_res = datetime.strptime(temp, "%m/%d/%Y %H:%M").date() # this is citibike different format.... sigh
     elif "-" in temp:
         try:
             temp_res = datetime.strptime(temp, "%Y-%m-%d").date()
