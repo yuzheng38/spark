@@ -14,9 +14,17 @@ The preprocess job also intializes two other objects (which later will also be b
 
 Temporal resolution is done using native Python modules. We currently have different temporal resolution functions for date-only and date-time, and support various formats. More granular temporal resolutions can be derived from these two during aggregation step.
 
-With parsing and transformation done, data is ready for aggregation.
+Note: arguments are passed via SparkConf. Arguments other than the above are needed mainly for spatial and temporal resolution. Specifically, indices of the following attributes in the dataset:
+* temporal - date/datetime
+* temporal - time
+* spatial - latitude
+* spatial - longitude
+Additionally, we need the desired spatial and temporal resolutions, such as spatial='zip', temporal='date' to be passed in via SparkConf.
+
 
 ##### Aggregation
+With parsing and transformation done, data is ready for aggregation.
+
 Each dataset is aggregated by key, using a specific scalar function. Currently, we count the number of valid attributes for each temporal and spatial resolution combination. Later in the project, we will implement more scalar functions, such as mean, max, and so on. The aggregated output is then written as a text file for correlation calculation.
 
 Note: as of now, this step is built into the preprocess step. It will become its own module when more scalar functions are added.
