@@ -1,9 +1,9 @@
 Written in Python 3.5, in the Spark 2.2.0 and Hadoop 2.6.0 environment. This project also depends on a third-party Python module, named Shapely (version 1.6.0), for spatial resolution.
 
 A high level process flow is summarized below in three main steps:
-    1. Preprocessing
-    2. Aggregation
-    3. Correlation Calculation
+>    1. Preprocessing
+>    2. Aggregation
+>    3. Correlation Calculation
 
 ##### Preprocess
 The main functionalities of the preprocess Spark job are to parse the datasets into an appropriate format, and at the same time, perform temporal and spatial resolutions. In order to properly parse each row of the dataset, we created a header file for each dataset that contains the dataset header and corresponding default values. After datasets and their headers/default files are placed in the designated <code>/data</code> directory, the preprocess job can be started.
