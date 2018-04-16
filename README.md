@@ -9,7 +9,7 @@ A high level process flow is summarized below in three main steps:
 >    2. Aggregation
 >    3. Correlation Calculation
 
-#### Preprocess
+###1. Preprocess
 The main functionalities of the preprocess Spark job are to parse the datasets into an appropriate format, and at the same time, perform temporal and spatial resolutions. In order to properly parse each row of the dataset, we created a header file for each dataset that contains the dataset header and corresponding default values. After datasets and their headers/default files are placed in the designated <code>/data</code> directory, the preprocess job can be started.
 
 It begins by initializing dataset header and default values (which later will be broadcast variables). Both are kept in memory for parsing purpose. We need the header to filter our the first row (i.e. header) of the whole dataset, and possibly for output formatting (TBD). Then each row of the dataset is parsed against the default values to filter out invalid attributes. The reason for this is that there are rows with a variable number of null or null-equivalent attributes in each dataset.
@@ -18,7 +18,7 @@ The preprocess job also initializes two other objects (which later will also be 
 
 Temporal resolution is done using native Python modules. We currently have different temporal resolution functions for date-only and date-time, and support various formats. More granular temporal resolutions can be derived from these two during aggregation step.
 
-##### Note:
+#### Note:
 Arguments are passed via SparkConf. Arguments other than the above are needed mainly for spatial and temporal resolution. Specifically, indices of the following attributes in the dataset:
 
 * temporal - date/datetime
@@ -28,25 +28,25 @@ Arguments are passed via SparkConf. Arguments other than the above are needed ma
 
 Additionally, we need the desired spatial and temporal resolutions, such as spatial='zip', temporal='date' to be passed in via SparkConf.
 
-##### Next goals:
+#### Next goals:
 * accept SparkConf arguments from CLI
 * enable connection with Amazon S3 instances, where some of the datasets are hosted.
-* develop various input parsers to account
-* develop more temporal and spatial resolution functions
+* possibly develop various input parsers to account for different formats in other datasets
+* develop more spatial [, temporal] resolution functions
 
-#### Aggregation
+###2. Aggregation
 With parsing and transformation done, data is ready for aggregation.
 
 Each dataset is aggregated by key, using a specific scalar function. Currently, we count the number of valid attributes for each temporal and spatial resolution combination. Later in the project, we will implement more scalar functions, such as mean, max, and so on. The aggregated output is then written as a text file for correlation calculation.
 
 Note: as of now, this step is built into the preprocess step. It will become its own module when more scalar functions are added.
 
-##### Next goals:
+#### Next goals:
 * modularize aggregation from preprocessing
 * develop more scalar functions.
 
-#### Correlation Calculation (Work in Progress)
+###3. Correlation Calculation (Work in Progress)
 Correlation calculation will be written as a separate Spark job that depends on the output of the Aggregation step.
 
-##### Next goals:
-* finish the current goal. :weary:
+#### Next goals:
+* finish the current goal. :expressionless:
