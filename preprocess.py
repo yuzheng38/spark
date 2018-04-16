@@ -170,6 +170,6 @@ if __name__ == "__main__":
         .set("si_lng", 6) \
         .set("t_res", "date") \
         .set("s_res", "zip") \
-        .set("out_dir", "citi.out")
+        .set("out_dir", "out/citi.out")
 
     preprocess(uri, conf)
