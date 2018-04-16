@@ -9,7 +9,7 @@ A high level process flow is summarized below in three main steps:
 >    2. Aggregation
 >    3. Correlation Calculation
 
-###1. Preprocess
+### 1. Preprocess
 The main functionalities of the preprocess Spark job are to parse the datasets into an appropriate format, and at the same time, perform temporal and spatial resolutions. In order to properly parse each row of the dataset, we created a header file for each dataset that contains the dataset header and corresponding default values. After datasets and their headers/default files are placed in the designated <code>/data</code> directory, the preprocess job can be started.
 
 It begins by initializing dataset header and default values (which later will be broadcast variables). Both are kept in memory for parsing purpose. We need the header to filter our the first row (i.e. header) of the whole dataset, and possibly for output formatting (TBD). Then each row of the dataset is parsed against the default values to filter out invalid attributes. The reason for this is that there are rows with a variable number of null or null-equivalent attributes in each dataset.
@@ -34,7 +34,7 @@ Additionally, we need the desired spatial and temporal resolutions, such as spat
 * possibly develop various input parsers to account for different formats in other datasets
 * develop more spatial [, temporal] resolution functions
 
-###2. Aggregation
+### 2. Aggregation
 With parsing and transformation done, data is ready for aggregation.
 
 Each dataset is aggregated by key, using a specific scalar function. Currently, we count the number of valid attributes for each temporal and spatial resolution combination. Later in the project, we will implement more scalar functions, such as mean, max, and so on. The aggregated output is then written as a text file for correlation calculation.
@@ -45,7 +45,7 @@ Note: as of now, this step is built into the preprocess step. It will become its
 * modularize aggregation from preprocessing
 * develop more scalar functions.
 
-###3. Correlation Calculation (Work in Progress)
+### 3. Correlation Calculation (Work in Progress)
 Correlation calculation will be written as a separate Spark job that depends on the output of the Aggregation step.
 
 #### Next goals:
