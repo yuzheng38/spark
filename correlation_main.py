@@ -62,8 +62,8 @@ def correlate(ds1, ds2, conf):
     """THINK OF A WAY TO RENAME THE COLUMNS FOR EACH DATASET"""
     df2 = spark.read.format("csv").options(header='false', inferschema='true').load(ds2)
 
-    print(df1.take(10))
-    print(df2.take(10))
+    # print(df1.take(10))
+    # print(df2.take(10))
 
     df1.printSchema()
     df2.printSchema()
@@ -73,9 +73,10 @@ def correlate(ds1, ds2, conf):
     in order to retrieve the ranks and then join the columns back into an RDD[Vector], which is fairly costly.
     Cache the input Dataset before calling corr with method = ‘spearman’ to avoid recomputing the common lineage.
     """
-
+    #
     # # join the 2 datasets
-    # joined = df1.join(df2, ['temp_res', 'spatial_res'], 'inner')
+    # # joined = df1.join(df2, ['temp_res', 'spatial_res'], 'inner')
+    # joined = df1.join(df2, [df1[0]==df2[0], df1[1]==df2[1]], 'inner')
     #
     # # now we have the joined result. next step is to assemble the vector for Correlation.corr()
     # # we wanna ignore the first 2 columns (temp-spatial key)
