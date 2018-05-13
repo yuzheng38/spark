@@ -31,14 +31,14 @@ def resolve_spatial_zip(line, x, y, zip_codes, polygons):
     # if missing any coordinate, default region to 0
     if not line[x] or not line[y]:
         # print("no coords")
-        line.append(0)
-        return line
+        # line.append(0)
+        return 0
 
     lat = float(line[x])
     lng = float(line[y])
     spatial_res = points_to_region(lat, lng, zip_codes, polygons)
-    line.append(spatial_res) # spatial res added to the end
-    return line
+    # line.append(spatial_res) # spatial res added to the end
+    return spatial_res
 
 def resolve_spatial_nbhd(line, x, y, nbhds, polygons):
     """
