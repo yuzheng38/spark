@@ -70,7 +70,7 @@ def preprocess(uri, conf):
 
     # this will load all the datasets matching the wild card uri
     df = spark.read.format("csv").options(header="true",inferschema="true").load(uri)
-    df.printSchema()
+    df.printSchema() # for testing
 
     # parse the temporal attributes if NOT already inferred
     tp_i = temp_idx[0]
@@ -156,8 +156,7 @@ def setup():
 
     # ALSO SET UP SparkConf()
     conf = SparkConf()
-    conf.setMaster("local") \
-        .setAppName("CS6513 project preprocess") \
+    conf.setAppName("CS6513 project preprocess") \
         .set("output", out_dir)
 
     return uri, conf
