@@ -12,16 +12,15 @@ from csv import reader
 from pyspark import SparkContext, SparkConf, StorageLevel
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
+from pyspark.sql.types import *
 from shapely.geometry import Polygon, Point
 
-""" broadcast these """
 regions = []
 polygons = []
-HEADERS = []
-DEFAULTS = []
-
-unique_params_indices = []
-numeric_params_indices = []
+temp_idx = []
+temp_idx_format = []
+spt_idx = []
+redundant_idx = []
 
 def init_mapping(file):
     """
@@ -51,154 +50,123 @@ def init_mapping(file):
 
             coords = []
             line = f.readline()
-    # for testing
-    # return regions, polygons
 
-def init_header_and_default(file, conf):
-    """
-    Initialize dataset header and default values
-    """
-    with open(file, "r") as f:
-        header = f.readline()
-        default = f.readline()
+def drop_null_cols(df, thresh):
+    total_cnt = df.count()
 
-    header = [x.strip(string.punctuation) for x in header.strip().split(",")]
-    default = [x.strip(string.punctuation) for x in default.strip().split(",")]
+    null_cols = []
+    for col in df.columns:
+        null_pcnt = df.filter(df[col].isNull()).count() / total_cnt
+        if null_pcnt > thresh:
+            null_cols.append(col)
 
-    HEADERS.extend(header)
-    DEFAULTS.extend(default)
+    for nc in null_cols:
+        df = df.drop(nc)
 
-    print(HEADERS)
-    print(DEFAULTS)
-
-    if len(HEADERS) != len(DEFAULTS):
-        print(len(HEADERS), len(DEFAULTS))
-        sys.exit("Something wrong with init_header_and_default. Header file should have header and default values")
-
-def identify_aggregations(header):
-    for i in range(len(header) - 1):
-        if "id" in header[i] or "key" in header[i] or "name" in header[i] or "type" in header[i]:
-            unique_params_indices.append(i)
-            continue
-        numeric_params_indices.append(i)
-
-def formatter(line):
-    """
-    key = (temporal_string, region_int)
-    return: the final output = temp_res,spatial_res,values
-    """
-    key = line[0]
-    values = line[1]
-
-    key_out = key[0] + "," + str(key[1])
-    values_out = ",".join([str(val) for val in values])
-    out = key_out + "," + values_out
-    return out
+    return df
 
 def preprocess(uri, conf):
-    sc = SparkContext.getOrCreate(conf)
-    ds_rdd = sc.textFile(uri, 1).mapPartitions(lambda x: reader(x))
-    # Filter out header if present. No better way it seems. Check the first element.
-    filtered_ds = ds_rdd.filter(lambda line: line[0] != HEADERS[0])
+    spark = SparkSession.builder.config(conf=conf).getOrCreate()
 
-    # Temporal resolution
-    conf = sc.getConf()
-    ti_date = int(conf.get("ti_date"))
-    ti_time = int(conf.get("ti_time"))
+    # this will load all the datasets matching the wild card uri
+    df = spark.read.format("csv").options(header="true",inferschema="true").load(uri)
+    df.printSchema()
 
-    if conf.get("t_res") == "date":
-        # Turn into lambda function so to pass in temporal index argument
-        ds_with_temp = filtered_ds.map(lambda line: tr.resolve_temporal_date(line, ti_date))
-    else:
-        ds_with_temp = filtered_ds.map(lambda line: tr.resolve_temporal_datetime(line, ti_date, ti_time))
+    # parse the temporal attributes if NOT already inferred
+    tp_i = temp_idx[0]
+    tp_f = temp_idx_format[0]
+    columns = df.columns
+    if df.dtypes[tp_i][1] != 'date':
+        temp_col = columns[tp_i]
+        df = df.withColumn(temp_col, F.to_date(df[temp_col], tp_f))
 
-    # Spatial resolution
-    lat = int(conf.get("si_lat"))
-    lng = int(conf.get("si_lng"))
-    # Turn into lambda function so to pass in temporal index argument
-    ds_with_spat_temp = ds_with_temp.map(lambda line: sr.resolve_spatial_zip(line, lat, lng, regions, polygons))
-    # parse and persist
-    parsed = ds_with_spat_temp.map(lambda line: fn.default_parser(line, unique_params_indices, numeric_params_indices, DEFAULTS))
-                              # .persist(storageLevel=StorageLevel(True, True, False, False, 1))
+    df = df.withColumnRenamed(temp_col, "temp_res")
 
+    # parse the spatial attributes if NOT already inferred
+    lat, lng = spt_idx[:2]
+    lat_col = columns[lat]
+    lng_col = columns[lng]
+    if df.dtypes[lat][1] != 'double':
+        df = df.withColumn(lat_col, df[lat_col].cast('double'))
+    if df.dtypes[lng][1] != 'double':
+        df = df.withColumn(lng_col, df[lng_col].cast('double'))
 
-    spark = SparkSession.builder.getOrCreate()
-    schema = ["temp_res", "spt_res"] + HEADERS
-    parsed_df = spark.createDataFrame(parsed, schema=schema)
-    parsed_df = parsed_df.limit(40)
+    rdd_temp = df.rdd.zipWithIndex()
+    df_temp = spark.createDataFrame(rdd_temp, ["_1", "_2"])
 
-    # initiate output DF with record count
-    output = parsed_df.groupBy([parsed_df.temp_res, parsed_df.spt_res]).count()
+    # map spatial attributes to zip codes
+    spat_rdd = df.select([lat_col, lng_col]) \
+                    .rdd \
+                    .map(lambda x: [x[lat_col], x[lng_col]]) \
+                    .map(lambda coords: sr.resolve_spatial_zip(coords, 0, 1, regions, polygons)) \
+                    .zipWithIndex()
 
-    # select and handle categorical attributes
-    cat_col_names = [HEADERS[i] for i in unique_params_indices]
-    for name in cat_col_names:
-        col = parsed_df.groupBy([parsed_df.temp_res, parsed_df.spt_res]).agg(F.approx_count_distinct(name).alias(name+"_uniq"))
-        output = output.join(col, ["temp_res", "spt_res"])
+    # join with original dataframe
+    df_spat = spark.createDataFrame(spat_rdd, ["spat_res", "_2"])
 
-    # select and handle numeric attributes
-    num_col_names = [HEADERS[i] for i in numeric_params_indices]
-    for name in num_col_names:
-        col = parsed_df.groupBy([parsed_df.temp_res, parsed_df.spt_res]).agg(F.mean(name).alias(name+"_avg"))
-        output = output.join(col, ["temp_res", "spt_res"])
+    joined_df = df_temp.join(df_spat, "_2", "inner").drop(df_temp._2).drop(df_spat._2)
+    joined_df = joined_df.selectExpr("_1.*", "spat_res")
 
-    output.limit(40).show()
+    # DO THIS AT THE END!!!
+    joined_df = drop_null_cols(joined_df, 0.8)
 
-    out_dir = conf.get("output")
-    out_dir = "aggregates/" + out_dir
+    # write preprocessed dataset
+    out_dir = spark.conf.get("output")
+    out_dir = "preprocess/" + out_dir
+    # print(joined_df.count())
+    # joined_df.show()
+    joined_df.write.csv(out_dir, header=True)
 
-    sc.stop()
+    spark.stop()
 
 def read_args():
-    """
-    Argument parser for datasets and their corresponding headers
-    """
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument("-input", dest="input_paths", nargs=1, required=True,
+    arg_parser.add_argument("-input", dest="input_file", nargs=1, required=True,
                             type=str, help="input dataset")
 
-    arg_parser.add_argument("-header", dest="header_paths", nargs=1, required=True,
-                            type=str, help="input dataset header file")
+    arg_parser.add_argument("-output", dest="output_dir", nargs=1, required=True,
+                            type=str, help="output directory")
 
-    # arg_parser.add_argument("-")
+    arg_parser.add_argument("-region", dest="region_file", nargs=1, required=True,
+                            type=str, help="region file")
+
+    arg_parser.add_argument("-temp_index", dest="temp_index", nargs=1, required=True,
+                            type=int, help="temporal index")
+
+    arg_parser.add_argument("-temp_format", dest="temp_format", nargs=1, required=True,
+                            type=str, help="temporal attribute format")
+
+    arg_parser.add_argument("-spt_indices", dest="spt_indices", nargs='+', required=True,
+                            type=int, help="lat lng")
+
 
     args = arg_parser.parse_args()
-    ds1, ds2 = args.input_paths
-    h1, h2 = args.header_paths
-    return ds1, ds2, h1, h2
+    return args
 
+def setup():
+    args = read_args()
+    uri = args.input_file[0]
+    out_dir = args.output_dir[0]
+    region_file = args.region_file[0]
+    temp_idx.extend(args.temp_index)
+    temp_idx_format.extend(args.temp_format)
+    spt_idx.extend(args.spt_indices)
 
-if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        sys.exit(1)
+    init_mapping(region_file)
 
-    uri = sys.argv[1]
-    header_file = sys.argv[2]
-
-
-    """ THESE WILL BE PASSED IN LATER
-        more potential options to explore
-            .setExecutorEnv()
-            .setSparkHome()
-    """
+    # ALSO SET UP SparkConf()
     conf = SparkConf()
     conf.setMaster("local") \
-        .setAppName("cs6513_project_preprocess") \
-        .set("region_file", "./data/zipcode.txt") \
-        .set("ti_date", 1) \
-        .set("ti_time", 1) \
-        .set("si_lat", 5) \
-        .set("si_lng", 6) \
-        .set("t_res", "date") \
-        .set("s_res", "zip") \
-        .set("output", "citi")
+        .setAppName("CS6513 project preprocess") \
+        .set("output", out_dir)
 
+    return uri, conf
 
-    init_mapping('./data/zipcode.txt')
-    init_header_and_default(header_file, conf)
-    identify_aggregations(HEADERS)
-    #
-    print("unique_params_indices: " + str(unique_params_indices))
-    print("numeric_params_indices: " + str(numeric_params_indices))
+if __name__ == "__main__":
+    uri, conf = setup()
+
+    print("temp_idx: " + str(temp_idx))
+    print("temp_idx_format: " + str(temp_idx_format))
+    print("spt_idx: " + str(spt_idx))
 
     preprocess(uri, conf)
