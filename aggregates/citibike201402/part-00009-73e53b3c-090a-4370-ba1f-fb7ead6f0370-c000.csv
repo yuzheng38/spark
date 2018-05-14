@@ -1,0 +1,2 @@
+temp_res,spat_res,count,start station id_uniq,start station name_uniq,end station id_uniq,end station name_uniq,bikeid_uniq,usertype_uniq,tripduration_avg,stoptime_avg,start station latitude_avg,start station longitude_avg,end station latitude_avg,end station longitude_avg,birth year_avg,gender_avg
+2014-02-01T00:00:00.000-05:00,10009,718,16,16,169,180,544,2,688.3454038997214,1.3912768068537605E9,40.72744398498609,-73.98038162243732,40.73093421921393,-73.98878723524763,1977.9727011494253,1.1991643454038998
