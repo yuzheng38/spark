@@ -74,7 +74,7 @@ def aggregate(uri, conf):
     # output.printSchema()
     # output.show(40)
     # print(output.count())
-
+    print("output directory is: " + out_dir)
     output.write.csv(out_dir, header=True)
     spark.stop()
 

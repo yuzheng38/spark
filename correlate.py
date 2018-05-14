@@ -2,6 +2,7 @@
 
 import argparse
 import numpy as np
+import pandas as pd
 import os
 import string
 import sys
@@ -10,6 +11,7 @@ from datetime import datetime
 from pyspark import SparkConf, SparkContext
 from pyspark.ml.stat import Correlation
 from pyspark.ml.feature import VectorAssembler
+from pyspark.ml.linalg import Vectors
 from pyspark.sql import SparkSession
 
 def correlate(uri1, uri2, conf):
@@ -28,31 +30,40 @@ def correlate(uri1, uri2, conf):
     in order to retrieve the ranks and then join the columns back into an RDD[Vector], which is fairly costly.
     Cache the input Dataset before calling corr with method = ‘spearman’ to avoid recomputing the common lineage.
     """
-    # join 2 datasets
+    # join 2 datasets and ignore first resolution columns
     joined = df1.join(df2, ["temp_res", "spat_res"], 'inner')
-    features = joined.columns[:-2]
 
-    joined = joined.select(features).show()
+    feature_types = joined.dtypes[2:]
+    # print(feature_types)
+
+    # drop non numeric features just in case
+    num_feature_types = filter(lambda t: t[1] == "int" or t[1] == "double" or t[1] == "float", feature_types)
+    features = [f_t[0] for f_t in num_feature_types]
+    # print(features)
+
+    joined = joined.select(features)
     joined.printSchema()
-    # now we have the joined result. next step is to assemble the vector for Correlation.corr()
-    # joined.show()
 
-    joined = joined.rdd.map(np.array)
-    joined.show()
-    # assembler = VectorAssembler(
-    #     inputCols=input_columns,
-    #     outputCol="features"
-    # )
-    #
-    # assembled_output = assembler.transform(joined)
-    # print("Assembled columns")
-    # print(assembled_output.take(10))
-    #
-    # spearmanCorr = Correlation.corr(assembled_output, "features", method='spearman').collect()[0][0]
-    # print(str(spearmanCorr))
-    #
-    # selected = joined.select(input_columns).take(10)
-    # print(selected)
+    # assemble the Vectors for Correlation.corr(), np.array is equivalent to dense venctors
+    vecAssembler = VectorAssembler(
+        inputCols=features,
+        outputCol="features"
+    )
+    joinedVec = vecAssembler.transform(joined)
+    spearmanCorr = Correlation.corr(joinedVec, 'features', method='spearman').collect()[0][0]
+
+    # turn into pandas dataframe
+    spearmanCorr = spearmanCorr.toArray()
+    print(spearmanCorr)
+
+    # prepare and write correlation result
+    out_dir = spark.conf.get("output")
+    out_dir = "correlations/" + out_dir
+    print("output directory is: " + out_dir)
+
+    pandasDF = pd.DataFrame(spearmanCorr, index=features, columns=features)
+    pandasDF.to_csv(out_dir)
+
     spark.stop()
 
 def read_args():
