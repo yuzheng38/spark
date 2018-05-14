@@ -17,12 +17,16 @@ python3 preprocess.py -input data/yellow_tripdata_2015-01_test.csv -output taxi[
 
 
 ####################
-spark-submit commands
+spark-submit example commands
 ####################
 
 # preprocess on citibike
 spark-submit --conf spark.pyspark.python=/share/apps/python/3.4.4/bin/python --conf spark.driver.memory=2g --conf spark.executor.memory=2g \
-preprocess.py -input data/citibike/2014-02-citibike-trip-data-test.csv -output citibike[year] -region data/zipcode.txt -temp_index 1 -temp_format "yyyy-MM-dd HH:mm:SS" -spt_indices 5 6
+preprocess.py -input data/citibike/2014-02-citibike-trip-data-test.csv -output citibike201402 -region data/zipcode.txt -temp_index 1 -temp_format "yyyy-MM-dd HH:mm:SS" -spt_indices 5 6
+# aggregate citibike example
+spark-submit --conf spark.pyspark.python=/share/apps/python/3.4.4/bin/python --conf spark.driver.memory=2g --conf spark.executor.memory=2g \
+aggregate.py -input preprocess/citibike201402 -output citibike201402
+
 
 # preprocess collisions
 spark-submit --conf spark.pyspark.python=/share/apps/python/3.4.4/bin/python spark.driver.memory=2g spark.executor.memory=2g \
