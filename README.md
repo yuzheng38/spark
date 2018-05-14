@@ -1,20 +1,25 @@
-Written in Python 3.5, in the Spark 2.2.0 and Hadoop 2.6.0 environment. This project also depends on a third-party Python module, named Shapely (version 1.6.0), for spatial resolution.
+Written in Python 3.5, in the Spark 2.2.0 and Hadoop 2.6.0 environment.
+
+### Dependencies
+
+This project depends on a third-party Python module, named Shapely (version 1.6.0), for spatial resolution. And pandas.
 
 
 ### Program Structure
 /---<br/>
-  |--- <code>data</code> - directory where raw datasets reside<br/>
-  |--- <code>preprocess</code> directory to where preprocessed datasets are saved<br/>
-  |--- <code>aggregates</code> directory to where aggregated datasets are saved<br/>
-  |--- <code>correlations</code> directory to where correlation results are saved<br/>
-  |--- <code>preprocess.py</code><br/>
-  |--- <code>aggregate.py</code><br/>
-  |--- <code>correlate.py</code><br/>
-  |--- <code>resolutions_spatial.py</code><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;|--- <code>data</code> - directory where raw datasets reside<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;|--- <code>preprocess</code> directory to where preprocessed datasets are saved<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;|--- <code>aggregates</code> directory to where aggregated datasets are saved<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;|--- <code>correlations</code> directory to where correlation results are saved<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;|--- <code>preprocess.py</code><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;|--- <code>aggregate.py</code><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;|--- <code>correlate.py</code><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;|--- <code>resolutions_spatial.py</code><br/>
 
 
-### Process flow
-A high level process flow is summarized below in three main steps:
+### Process Flow
+
+A high level process flow is summarized below in three main steps.
 >    1. Preprocessing
 >    2. Aggregation
 >    3. Correlation Calculation
@@ -22,11 +27,11 @@ A high level process flow is summarized below in three main steps:
 #### 1. preprocess.py
 Raw datasets reside <code>/data</code> directory.
 
-The main functionalities of preprocess.py are to parse the datasets into an appropriate format, and at the same time, perform temporal and spatial resolutions. Datasets are read as SparkSession dataframes, and schemas are inferred. However, the schema is often not correct. So additional handling is coded in preprocess.py.
+The main functionalities of preprocess.py are to perform spatial and temporal resolutions, in addition, some slight transformations. A raw datasets is read as an SparkSession dataframe, and its schema and data types are inferred. However, the schema and/or datatype are often not correct. So additional handling is done in preprocess.py.
 
 The preprocess job begins by initializing two objects - polygons and region mappings. They are created and kept in memory for spatial resolution translation purpose. Currently our code supports spatial resolution at the zip code level.  We keep a file (<code>zipcode.txt</code>) that contains zip codes in New York City and their corresponding bounding latitude and longitude. Each zip code and its coordinates are used to create a polygon, then added to a <code>(zip code, polygon)</code> mapping table in memory. Polygons are created with the help of the Shapely python module. After each row of the dataset is parsed, it's transformed by a spatial resolution function which uses the mapping table. More spatial resolutions can be added later.
 
-Temporal resolution is done using pyspark functions. We currently support temporal resolution at date level. Because date/datetime format varies between datasets, even within the same dataset but across different months, we have the user provide the format string before starting the preprocess job. More broader or granular temporal resolutions can be derived from these two during aggregation step, if needed.
+Temporal resolution is done using some <code>pyspark.sql.functions</code> for example, <code>to_date()</code>. We currently support temporal resolution at date level. Because date/datetime format varies between datasets, even within the same dataset but across different months, we have the user provide the format string before starting the preprocess job. More broader or granular temporal resolutions can be derived from these two during aggregation step, if needed.
 
 Arguments are passed via command line as application arguments. Specifically, indices of the following attributes in the dataset:
 
@@ -37,6 +42,12 @@ Arguments are passed via command line as application arguments. Specifically, in
 After temporal and spatial resolutions are done, columns which contain more than 80% null values are dropped from the dataset.
 
 The preprocessed dataset is saved to the <code>./preprocess</code> directory for aggregation.
+
+How to call <code>preprocess.py</code>:<br/><br/>
+<code>
+python3 preprocess.py -input data/201501-citibike-tripdata-test.csv
+-output citibike201501_test -region data/zipcode.txt -temp_index 1 -temp_format "MM/dd/yyyy HH:mm" -spt_indices 5 6
+</code>
 
 
 #### 2. aggregate.py
@@ -55,6 +66,10 @@ Below are the general steps for aggregation:
 
 The aggregated output is then written to the <code>./aggregates</code> directory for correlation calculation.
 
+How to call <code>aggregate.py</code>:<br/><br/>
+<code>
+python3 aggregate.py -input preprocess/citibike201402 -output citibike201402
+</code>
 
 #### 3. correlate.py
 Spearman correlation is calculated using the Correlation class from pyspark.ml.stat module. Spearman correlation is calculated for only 2 datasets at a time. Below are the general steps:
@@ -68,3 +83,8 @@ Spearman correlation is calculated using the Correlation class from pyspark.ml.s
 4. Correlation result is returned as a DenseMatrix. We turned the result matrix into a pandas data frame, added header and index names, and write the pandas data frame as a csv file.
 
 Correlation results are saved to the <code>./correlations</code> folder.
+
+How to call <code>correlate.py</code>:<br/><br/>
+<code>
+python3 correlate.py -input aggregates/citibike201501_test aggregates/taxi201501_test -output citibike_taxi_201501_test
+</code>
