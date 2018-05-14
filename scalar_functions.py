@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+"""NO LONGER NEEDED"""
 def default_parser(line, unique_params_indices, numeric_params_indices, DEFAULTS):
     key = line[-2:]
     values = line[:-2]
