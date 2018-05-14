@@ -16,8 +16,12 @@ unique_params_indices = []
 numeric_params_indices = []
 
 def identify_aggregations(header):
-    for i in range(len(header) - 1):
-        if "id" in header[i] or "key" in header[i] or "name" in header[i] or "type" in header[i]:
+    header = [h.lower() for h in header]
+
+    cat_attr_set = ["id", "key", "name", "type", "borough", "location"]
+
+    for i in range(len(header) - 1):    # forgot why -1
+        if any(a in header[i] for a in cat_attr_set):
             unique_params_indices.append(i)
             continue
 
@@ -40,7 +44,8 @@ def aggregate(uri, conf):
     # initiate output DF with record count
     cnt_col_name = spark.conf.get("output") + "_count"
     output = parsed_df.groupBy([parsed_df.temp_res, parsed_df.spat_res]) \
-                      .count() \
+                      .count()
+
     output = output.withColumnRenamed("count", cnt_col_name)
 
     # select and handle categorical attributes
@@ -66,9 +71,9 @@ def aggregate(uri, conf):
     out_dir = spark.conf.get("output")
     out_dir = "aggregates/" + out_dir
 
-    output.printSchema()
-    output.show(40)
-    print(output.count())
+    # output.printSchema()
+    # output.show(40)
+    # print(output.count())
 
     output.write.csv(out_dir, header=True)
     spark.stop()
