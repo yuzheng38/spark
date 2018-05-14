@@ -115,6 +115,7 @@ def preprocess(uri, conf):
     out_dir = "preprocess/" + out_dir
     # print(joined_df.count())
     # joined_df.show()
+    print("output directory is: " + out_dir)
     joined_df.write.csv(out_dir, header=True)
 
     spark.stop()
@@ -156,6 +157,7 @@ def setup():
     # set up SparkConf()
     conf = SparkConf()
     conf.setAppName("CS6513 project preprocess") \
+        .setMaster("local[4]") \
         .set("output", out_dir)
 
     return uri, conf
