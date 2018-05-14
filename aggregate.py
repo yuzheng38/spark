@@ -41,7 +41,7 @@ def aggregate(uri, conf):
     cnt_col_name = spark.conf.get("output") + "_count"
     output = parsed_df.groupBy([parsed_df.temp_res, parsed_df.spat_res]) \
                       .count() \
-                      .alias(cnt_col_name)
+    output = output.withColumnRenamed("count", cnt_col_name)
 
     # select and handle categorical attributes
     cat_col_names = [columns[i] for i in unique_params_indices]
@@ -64,13 +64,13 @@ def aggregate(uri, conf):
 
     # write aggregated dataset
     out_dir = spark.conf.get("output")
-    out_dir = "aggregtes/" + out_dir
+    out_dir = "aggregates/" + out_dir
 
     output.printSchema()
     output.show(40)
     print(output.count())
 
-    # output.write.csv(out_dir, header=True)
+    output.write.csv(out_dir, header=True)
     spark.stop()
 
 
@@ -91,7 +91,7 @@ def setup():
     out_dir = args.output_dir[0]
 
     conf = SparkConf()
-    conf.setAppName("CS6513 project preprocess") \
+    conf.setAppName("CS6513 project aggregate") \
         .set("output", out_dir)
 
     return uri, conf

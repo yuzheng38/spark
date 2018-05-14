@@ -139,7 +139,6 @@ def read_args():
     arg_parser.add_argument("-spt_indices", dest="spt_indices", nargs='+', required=True,
                             type=int, help="lat lng")
 
-
     args = arg_parser.parse_args()
     return args
 
@@ -154,7 +153,7 @@ def setup():
 
     init_mapping(region_file)
 
-    # ALSO SET UP SparkConf()
+    # set up SparkConf()
     conf = SparkConf()
     conf.setAppName("CS6513 project preprocess") \
         .set("output", out_dir)
