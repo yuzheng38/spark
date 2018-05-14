@@ -2,7 +2,7 @@ Written in Python 3.5, in the Spark 2.2.0 and Hadoop 2.6.0 environment. This pro
 
 
 ### Program Structure
-/---
+/---<br/>
   |--- <code>data</code> - directory where raw datasets reside
 
   |--- <code>preprocess</code> directory to where preprocessed datasets are saved
