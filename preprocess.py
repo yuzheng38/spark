@@ -92,7 +92,7 @@ def preprocess(uri, conf):
         df = df.withColumn(lng_col, df[lng_col].cast('double'))
 
     rdd_temp = df.rdd.zipWithIndex()
-    df_temp = spark.createDataFrame(rdd_temp, ["_1", "_2"])
+    df_temp = spark.createDataFrame(rdd_temp, ["_1", "_2"], samplingRatio=0.1)
 
     # map spatial attributes to zip codes
     spat_rdd = df.select([lat_col, lng_col]) \
