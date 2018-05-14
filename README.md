@@ -4,12 +4,19 @@ Written in Python 3.5, in the Spark 2.2.0 and Hadoop 2.6.0 environment. This pro
 ### Program Structure
 /---
   |--- <code>data</code> - directory where raw datasets reside
+
   |--- <code>preprocess</code> directory to where preprocessed datasets are saved
+
   |--- <code>aggregates</code> directory to where aggregated datasets are saved
+
   |--- <code>correlations</code> directory to where correlation results are saved
+
   |--- <code>preprocess.py</code>
+
   |--- <code>aggregate.py</code>
+
   |--- <code>correlate.py</code>
+
   |--- <code>resolutions_spatial.py</code>
 
 
