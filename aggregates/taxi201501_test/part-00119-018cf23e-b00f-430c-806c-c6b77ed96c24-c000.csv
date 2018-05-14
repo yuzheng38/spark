@@ -1,0 +1,2 @@
+temp_res,spat_res,taxi201501_test_count,VendorID_uniq,RateCodeID_uniq,payment_type_uniq,tpep_dropoff_datetime_avg,passenger_count_avg,trip_distance_avg,pickup_longitude_avg,pickup_latitude_avg,store_and_fwd_flag_avg,dropoff_longitude_avg,dropoff_latitude_avg,fare_amount_avg,extra_avg,mta_tax_avg,tip_amount_avg,tolls_amount_avg,improvement_surcharge_avg,total_amount_avg
+2015-01-03T00:00:00.000-05:00,10026,1,1,1,1,1.420296314E9,1.0,2.76,-73.95442199707031,40.80596923828125,,-73.96649932861328,40.773399353027344,11.0,0.0,0.5,2.2,0.0,0.3,14.0

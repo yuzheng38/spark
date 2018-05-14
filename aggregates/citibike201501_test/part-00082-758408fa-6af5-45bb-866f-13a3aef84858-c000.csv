@@ -1,0 +1,3 @@
+temp_res,spat_res,citibike201501_test_count,start station id_uniq,start station name_uniq,end station id_uniq,end station name_uniq,bikeid_uniq,usertype_uniq,tripduration_avg,stoptime_avg,start station latitude_avg,start station longitude_avg,end station latitude_avg,end station longitude_avg,birth year_avg,gender_avg
+2015-01-02T00:00:00.000-05:00,10038,183,8,8,85,89,153,2,674.2349726775956,,40.71019412612023,-74.00247190918034,40.716973853606554,-73.99901868442622,1858.207650273224,1.169398907103825
+2015-01-03T00:00:00.000-05:00,10016,203,15,16,106,119,170,2,608.2118226600985,,40.744408154137936,-73.97868128556651,40.74163597837438,-73.98551954325124,1880.423645320197,1.1773399014778325
