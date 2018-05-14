@@ -1,52 +1,70 @@
 Written in Python 3.5, in the Spark 2.2.0 and Hadoop 2.6.0 environment. This project also depends on a third-party Python module, named Shapely (version 1.6.0), for spatial resolution.
 
-Reasons for choosing Spark over MapReduce and Spark SQL:
-> performance improvement brought by in-memory computation
-> even though Spark SQL provides the convenience of coding in SQL. We prefer flexibility to decompose the process into small units of Transformations and Actions. We get a simpler design and better code readability.
 
+### Program Structure
+/---
+  |--- <code>data</code> - directory where raw datasets reside
+  |--- <code>preprocess</code> directory to where preprocessed datasets are saved
+  |--- <code>aggregates</code> directory to where aggregated datasets are saved
+  |--- <code>correlations</code> directory to where correlation results are saved
+  |--- <code>preprocess.py</code>
+  |--- <code>aggregate.py</code>
+  |--- <code>correlate.py</code>
+  |--- <code>resolutions_spatial.py</code>
+
+
+### Process flow
 A high level process flow is summarized below in three main steps:
 >    1. Preprocessing
 >    2. Aggregation
 >    3. Correlation Calculation
 
-### 1. Preprocess
-The main functionalities of the preprocess Spark job are to parse the datasets into an appropriate format, and at the same time, perform temporal and spatial resolutions. In order to properly parse each row of the dataset, we created a header file for each dataset that contains the dataset header and corresponding default values. After datasets and their headers/default files are placed in the designated <code>/data</code> directory, the preprocess job can be started.
+#### 1. preprocess.py
+Raw datasets reside <code>/data</code> directory.
 
-It begins by initializing dataset header and default values (which later will be broadcast variables). Both are kept in memory for parsing purpose. We need the header to filter our the first row (i.e. header) of the whole dataset, and possibly for output formatting (TBD). Then each row of the dataset is parsed against the default values to filter out invalid attributes. The reason for this is that there are rows with a variable number of null or null-equivalent attributes in each dataset.
+The main functionalities of preprocess.py are to parse the datasets into an appropriate format, and at the same time, perform temporal and spatial resolutions. Datasets are read as SparkSession dataframes, and schemas are inferred. However, the schema is often not correct. So additional handling is coded in preprocess.py.
 
-The preprocess job also initializes two other objects (which later will also be broadcast variables) - polygons and region mappings. They are created and kept in memory for spatial resolution translation purpose. Currently our code supports spatial resolution at the zip code level.  As an example, we have a file (<code>zipcode.txt</code>) that contains zip codes in New York City and their corresponding bounding latitude and longitude. Each zip code and its coordinates are used to create a polygon, then added to a <code>(zip code, polygon)</code> mapping table in memory. Polygons are created with the help of the Shapely python module. After each row of the dataset is parsed, it's transformed by a spatial resolution function which uses the mapping table. More spatial resolutions will be added later in the project.
+The preprocess job begins by initializing two objects - polygons and region mappings. They are created and kept in memory for spatial resolution translation purpose. Currently our code supports spatial resolution at the zip code level.  We keep a file (<code>zipcode.txt</code>) that contains zip codes in New York City and their corresponding bounding latitude and longitude. Each zip code and its coordinates are used to create a polygon, then added to a <code>(zip code, polygon)</code> mapping table in memory. Polygons are created with the help of the Shapely python module. After each row of the dataset is parsed, it's transformed by a spatial resolution function which uses the mapping table. More spatial resolutions can be added later.
 
-Temporal resolution is done using native Python modules. We currently have different temporal resolution functions for date-only and date-time, and support various formats. More granular temporal resolutions can be derived from these two during aggregation step.
+Temporal resolution is done using pyspark functions. We currently support temporal resolution at date level. Because date/datetime format varies between datasets, even within the same dataset but across different months, we have the user provide the format string before starting the preprocess job. More broader or granular temporal resolutions can be derived from these two during aggregation step, if needed.
 
-#### Note:
-Arguments are passed via SparkConf. Arguments other than the above are needed mainly for spatial and temporal resolution. Specifically, indices of the following attributes in the dataset:
+Arguments are passed via command line as application arguments. Specifically, indices of the following attributes in the dataset:
 
 * temporal - date/datetime
-* temporal - time
 * spatial - latitude
 * spatial - longitude
 
-Additionally, we need the desired spatial and temporal resolutions, such as spatial='zip', temporal='date' to be passed in via SparkConf.
+After temporal and spatial resolutions are done, columns which contain more than 80% null values are dropped from the dataset.
 
-#### Next goals:
-* accept SparkConf arguments from CLI
-* enable connection with Amazon S3 instances, where some of the datasets are hosted.
-* possibly develop various input parsers to account for different formats in other datasets
-* develop more spatial [, temporal] resolution functions
+The preprocessed dataset is saved to the <code>./preprocess</code> directory for aggregation.
 
-### 2. Aggregation
-With parsing and transformation done, data is ready for aggregation.
 
-Each dataset is aggregated by key, using a specific scalar function. Currently, we count the number of valid attributes for each temporal and spatial resolution combination. Later in the project, we will implement more scalar functions, such as mean, max, and so on. The aggregated output is then written as a text file for correlation calculation.
+#### 2. aggregate.py
+Three aggregations are baselined for each spatial/temporal group:
+* Count of records
+* Average of numeric attributes
+* Unique count of categorical values
 
-Note: as of now, this step is built into the preprocess step. It will become its own module when more scalar functions are added.
+Below are the general steps for aggregation:
 
-#### Next goals:
-* modularize aggregation from preprocessing
-* develop more scalar functions.
+1. Preprocessed dataset is read in from the <code>./preprocess</code> directory. Schema and header are inferred.
 
-### 3. Correlation Calculation (Work in Progress)
-Correlation calculation will be written as a separate Spark job that depends on the output of the Aggregation step.
+2. We use some simple conditions to automatically identify the appropriate aggregations for each attribute. For example, if a column name contains "type", the a unique count of its categorical values is performed.
 
-#### Next goals:
-* finish the current goal. :expressionless:
+3. The dataset is grouped by temporal-spatial resolutions, then one of the three aggregations is applied to each of the columns.
+
+The aggregated output is then written to the <code>./aggregates</code> directory for correlation calculation.
+
+
+#### 3. correlate.py
+Spearman correlation is calculated using the Correlation class from pyspark.ml.stat module. Spearman correlation is calculated for only 2 datasets at a time. Below are the general steps:
+
+1. Two datasets are read in from the <code>./aggregates</code> directory and joined based on temporal and spatial resolution attributes.
+
+2. Non-numeric features are excluded from spearman correlation calculation just as a safe measure, although the number of non-numeric features should be minimal now.
+
+3. Joined data frame is then vectorized using VectorAssembler to prepare the data frame for correlation.
+
+4. Correlation result is returned as a DenseMatrix. We turned the result matrix into a pandas data frame, added header and index names, and write the pandas data frame as a csv file.
+
+Correlation results are saved to the <code>./correlations</code> folder.
